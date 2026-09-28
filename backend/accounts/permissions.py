@@ -29,3 +29,25 @@ class IsAdminOrReadOnly(BasePermission):
         if not request.user.is_authenticated:
             return False
         return request.method in SAFE_METHODS or request.user.is_admin_role
+
+
+def role_required(*roles):
+    class HasRole(BasePermission):
+        message = "This action is only allowed for: " + ", ".join(role.label for role in roles)
+
+        def has_permission(self, request, view):
+            return request.user.is_authenticated and request.user.role in roles
+
+    return HasRole
+
+
+class RolePermissionMixin:
+    """Lets a ViewSet declare which roles may perform each action."""
+
+    action_roles = {}
+
+    def get_permissions(self):
+        roles = self.action_roles.get(self.action)
+        if roles:
+            return [role_required(*roles)()]
+        return super().get_permissions()

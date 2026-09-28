@@ -3,8 +3,10 @@ from django.utils import timezone
 
 from .models import Admission, Bed, EmergencyArrival, Transfer, VitalReading
 
+from config.errors import DomainError
 
-class HospitalError(Exception):
+
+class HospitalError(DomainError):
     """Raised when an action breaks a hospital rule, e.g. admitting into an occupied bed."""
 
 
@@ -16,6 +18,10 @@ def _lock_bed(bed_id):
 def admit_patient(*, patient, bed, reason="", by=None, admitted_at=None,
                   expected_discharge_at=None, emergency_arrival=None):
     bed = _lock_bed(bed.pk)
+
+    if emergency_arrival is not None and emergency_arrival.status != EmergencyArrival.Status.WAITING:
+        raise HospitalError("This emergency patient is no longer waiting.")
+
     if not bed.is_active:
         raise HospitalError(f"Bed {bed.code} is closed.")
     if bed.status != Bed.Status.FREE:
@@ -111,3 +117,11 @@ def record_vitals(*, admission, source=VitalReading.Source.MONITOR, by=None, rec
     reading.full_clean()
     reading.save()
     return reading
+
+
+def discharge_from_emergency(*, arrival):
+    if arrival.status != EmergencyArrival.Status.WAITING:
+        raise HospitalError("This emergency patient is no longer waiting.")
+    arrival.status = EmergencyArrival.Status.DISCHARGED
+    arrival.save(update_fields=["status"])
+    return arrival
