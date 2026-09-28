@@ -3,4 +3,10 @@ from django.contrib.auth.admin import UserAdmin
 
 from .models import User
 
-admin.site.register(User, UserAdmin)
+
+@admin.register(User)
+class MedTwinUserAdmin(UserAdmin):
+    list_display = ("username", "first_name", "last_name", "role", "is_active")
+    list_filter = ("role", "is_active", "is_staff")
+    fieldsets = UserAdmin.fieldsets + (("Role", {"fields": ("role",)}),)
+    add_fieldsets = UserAdmin.add_fieldsets + (("Role", {"fields": ("role",)}),)
