@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.db.models import Count, Q
-
+from .models import Admission, Bed, EmergencyArrival, Patient, Transfer, Unit, VitalReading
 from .models import Bed, Patient, Unit
 
 
@@ -45,3 +45,39 @@ class PatientAdmin(admin.ModelAdmin):
     list_filter = ("sex",)
     search_fields = ("mrn", "first_name", "last_name")
     readonly_fields = ("mrn", "created_at")
+
+
+class TransferInline(admin.TabularInline):
+    model = Transfer
+    extra = 0
+    can_delete = False
+    readonly_fields = ("from_bed", "to_bed", "transferred_at", "transferred_by")
+
+
+@admin.register(Admission)
+class AdmissionAdmin(admin.ModelAdmin):
+    list_display = ("patient", "bed", "admitted_at", "discharged_at", "outcome", "risk_level")
+    list_filter = ("bed__unit", "outcome", "risk_level")
+    search_fields = ("patient__mrn", "patient__first_name", "patient__last_name")
+    list_select_related = ("patient", "bed")
+    inlines = [TransferInline]
+
+    def has_add_permission(self, request):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        return [field.name for field in self.model._meta.fields]
+
+
+@admin.register(VitalReading)
+class VitalReadingAdmin(admin.ModelAdmin):
+    list_display = ("admission", "recorded_at", "heart_rate", "spo2", "respiratory_rate", "temperature", "source")
+    list_filter = ("source",)
+    list_select_related = ("admission__patient", "admission__bed")
+
+
+@admin.register(EmergencyArrival)
+class EmergencyArrivalAdmin(admin.ModelAdmin):
+    list_display = ("patient", "triage_level", "complaint", "arrived_at", "status")
+    list_filter = ("status", "triage_level")
+    list_select_related = ("patient",)
