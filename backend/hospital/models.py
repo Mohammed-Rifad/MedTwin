@@ -5,7 +5,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models import Q
 from django.utils import timezone
 from django.db import models
-
+from twin import clock
 
 class Unit(models.Model):
     class UnitType(models.TextChoices):
@@ -49,6 +49,7 @@ class Bed(models.Model):
     is_active = models.BooleanField(default=True)
     map_x = models.PositiveIntegerField(default=0)
     map_y = models.PositiveIntegerField(default=0)
+    status_since = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["unit", "code"]
@@ -143,7 +144,8 @@ class Admission(models.Model):
 
     @property
     def length_of_stay(self):
-        return (self.discharged_at or timezone.now()) - self.admitted_at
+        return (self.discharged_at or clock.now()) - self.admitted_at
+
 
 
 class Transfer(models.Model):

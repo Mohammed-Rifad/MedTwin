@@ -1,8 +1,7 @@
 from collections import Counter
-
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-
+from twin.models import HospitalClock
 from accounts.models import User
 from equipment.models import Equipment
 from hospital.models import Admission, Bed, EmergencyArrival, Patient, Unit
@@ -75,6 +74,8 @@ class Command(BaseCommand):
         Equipment.objects.all().delete()
         Bed.objects.all().delete()
         Unit.objects.all().delete()
+        HospitalClock.objects.all().delete()
+
         self.stdout.write("Deleted existing hospital data.")
 
     def create_units_and_beds(self):

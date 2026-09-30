@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from accounts.audit import log_action
 from accounts.models import AuditLog, User
 from accounts.permissions import IsAdminOrReadOnly, RolePermissionMixin
-
+from twin import clock
 from . import services
 from .filters import AdmissionFilter, PatientFilter
 from .models import Admission, Bed, EmergencyArrival, Patient, Unit, VitalReading
@@ -173,7 +173,7 @@ class EmergencyArrivalViewSet(
     }
 
     def perform_create(self, serializer):
-        arrival = serializer.save(logged_by=self.request.user)
+        arrival = serializer.save(logged_by=self.request.user, arrived_at=clock.now())
         log_action(self.request, AuditLog.Action.CREATE, arrival, f"ED arrival, triage {arrival.triage_level}")
 
     @action(detail=True, methods=["post"])

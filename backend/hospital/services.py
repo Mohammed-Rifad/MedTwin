@@ -1,9 +1,9 @@
 from django.db import transaction
-from django.utils import timezone
-
-from .models import Admission, Bed, EmergencyArrival, Transfer, VitalReading
 
 from config.errors import DomainError
+from twin import clock
+
+from .models import Admission, Bed, EmergencyArrival, Transfer, VitalReading
 
 
 class HospitalError(DomainError):
@@ -14,18 +14,23 @@ def _lock_bed(bed_id):
     return Bed.objects.select_for_update().get(pk=bed_id)
 
 
+def _set_bed_status(bed, status, at):
+    bed.status = status
+    bed.status_since = at
+    bed.save(update_fields=["status", "status_since"])
+
+
 @transaction.atomic
 def admit_patient(*, patient, bed, reason="", by=None, admitted_at=None,
                   expected_discharge_at=None, emergency_arrival=None):
+    admitted_at = admitted_at or clock.now()
     bed = _lock_bed(bed.pk)
-
-    if emergency_arrival is not None and emergency_arrival.status != EmergencyArrival.Status.WAITING:
-        raise HospitalError("This emergency patient is no longer waiting.")
-
     if not bed.is_active:
         raise HospitalError(f"Bed {bed.code} is closed.")
     if bed.status != Bed.Status.FREE:
         raise HospitalError(f"Bed {bed.code} is not free.")
+    if emergency_arrival is not None and emergency_arrival.status != EmergencyArrival.Status.WAITING:
+        raise HospitalError("This emergency patient is no longer waiting.")
     if patient.admissions.filter(discharged_at__isnull=True).exists():
         raise HospitalError(f"{patient.full_name} is already admitted.")
 
@@ -33,12 +38,11 @@ def admit_patient(*, patient, bed, reason="", by=None, admitted_at=None,
         patient=patient,
         bed=bed,
         reason=reason,
-        admitted_at=admitted_at or timezone.now(),
+        admitted_at=admitted_at,
         expected_discharge_at=expected_discharge_at,
         admitted_by=by,
     )
-    bed.status = Bed.Status.OCCUPIED
-    bed.save(update_fields=["status"])
+    _set_bed_status(bed, Bed.Status.OCCUPIED, admitted_at)
 
     if emergency_arrival is not None:
         emergency_arrival.status = EmergencyArrival.Status.ADMITTED
@@ -49,7 +53,8 @@ def admit_patient(*, patient, bed, reason="", by=None, admitted_at=None,
 
 
 @transaction.atomic
-def transfer_patient(*, admission, to_bed, by=None, transferred_at=None):
+def transfer_patient(*, admission, to_bed, by=None, transferred_at=None, expected_discharge_at=None):
+    transferred_at = transferred_at or clock.now()
     if not admission.is_active:
         raise HospitalError("Only current admissions can be transferred.")
     if to_bed.pk == admission.bed_id:
@@ -64,40 +69,41 @@ def transfer_patient(*, admission, to_bed, by=None, transferred_at=None):
         admission=admission,
         from_bed=from_bed,
         to_bed=to_bed,
-        transferred_at=transferred_at or timezone.now(),
+        transferred_at=transferred_at,
         transferred_by=by,
     )
     admission.bed = to_bed
-    admission.save(update_fields=["bed"])
-    from_bed.status = Bed.Status.CLEANING
-    from_bed.save(update_fields=["status"])
-    to_bed.status = Bed.Status.OCCUPIED
-    to_bed.save(update_fields=["status"])
+    fields = ["bed"]
+    if expected_discharge_at is not None:
+        admission.expected_discharge_at = expected_discharge_at
+        fields.append("expected_discharge_at")
+    admission.save(update_fields=fields)
+    _set_bed_status(from_bed, Bed.Status.CLEANING, transferred_at)
+    _set_bed_status(to_bed, Bed.Status.OCCUPIED, transferred_at)
     return admission
 
 
 @transaction.atomic
 def discharge_patient(*, admission, outcome, by=None, discharged_at=None):
+    discharged_at = discharged_at or clock.now()
     if not admission.is_active:
         raise HospitalError("This admission has already ended.")
 
     bed = _lock_bed(admission.bed_id)
-    admission.discharged_at = discharged_at or timezone.now()
+    admission.discharged_at = discharged_at
     admission.outcome = outcome
     admission.discharged_by = by
     admission.save(update_fields=["discharged_at", "outcome", "discharged_by"])
-    bed.status = Bed.Status.CLEANING
-    bed.save(update_fields=["status"])
+    _set_bed_status(bed, Bed.Status.CLEANING, discharged_at)
     return admission
 
 
 @transaction.atomic
-def mark_bed_clean(*, bed):
+def mark_bed_clean(*, bed, at=None):
     bed = _lock_bed(bed.pk)
     if bed.status != Bed.Status.CLEANING:
         raise HospitalError(f"Bed {bed.code} is not waiting for cleaning.")
-    bed.status = Bed.Status.FREE
-    bed.save(update_fields=["status"])
+    _set_bed_status(bed, Bed.Status.FREE, at or clock.now())
     return bed
 
 
@@ -111,7 +117,7 @@ def record_vitals(*, admission, source=VitalReading.Source.MONITOR, by=None, rec
         admission=admission,
         source=source,
         recorded_by=by,
-        recorded_at=recorded_at or timezone.now(),
+        recorded_at=recorded_at or clock.now(),
         **values,
     )
     reading.full_clean()

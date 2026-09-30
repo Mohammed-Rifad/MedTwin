@@ -1,6 +1,5 @@
-from django.utils import timezone
+from twin import clock
 from rest_framework import serializers
-
 from .models import Admission, Bed, EmergencyArrival, Patient, Unit, VitalReading
 
 
@@ -133,12 +132,12 @@ class EmergencyArrivalSerializer(serializers.ModelSerializer):
             "id", "patient", "patient_name", "arrived_at", "triage_level",
             "complaint", "status", "admission", "waiting_minutes",
         )
-        read_only_fields = ("status", "admission")
+        read_only_fields = ("arrived_at", "status", "admission")
 
-    def get_waiting_minutes(self, obj):
-        if obj.status != EmergencyArrival.Status.WAITING:
-            return None
-        return int((timezone.now() - obj.arrived_at).total_seconds() // 60)
+        def get_waiting_minutes(self, obj):
+            if obj.status != EmergencyArrival.Status.WAITING:
+                return None
+            return int((clock.now() - obj.arrived_at).total_seconds() // 60)
 
 
 class EmergencyAdmitSerializer(serializers.Serializer):
