@@ -134,7 +134,7 @@ class EmergencyArrivalSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("arrived_at", "status", "admission")
 
-        def get_waiting_minutes(self, obj):
+    def get_waiting_minutes(self, obj):
             if obj.status != EmergencyArrival.Status.WAITING:
                 return None
             return int((clock.now() - obj.arrived_at).total_seconds() // 60)
