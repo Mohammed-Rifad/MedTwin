@@ -39,3 +39,14 @@ class SimulationConfig:
     cleaning_minutes: tuple = (45, 90)
     boarding_retry_minutes: float = 30
     name_locale: str = "en_IN"
+        # Vital signs
+    deterioration_probability: float = 0.10
+    deterioration_onset_hours: tuple = (6, 48)
+    deterioration_hours_to_peak: float = 12
+    recovery_hours: float = 24
+    reading_interval_minutes: dict = field(default_factory=lambda: {"ED": 30, "ICU": 15, "WARD": 60})
+    temperature_interval_hours: float = 4
+    # Equipment
+    telemetry_interval_minutes: float = 10
+    faults_per_device_per_day: float = 1 / 60
+    fault_hours_to_failure: tuple = (12, 36)

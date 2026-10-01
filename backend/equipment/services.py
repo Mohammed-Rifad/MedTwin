@@ -48,3 +48,12 @@ def record_telemetry(*, equipment, recorded_at=None, **values):
     return EquipmentReading.objects.create(
         equipment=equipment, recorded_at=recorded_at or clock.now(), **values
     )
+
+@transaction.atomic
+def mark_failed(*, equipment):
+    equipment = _lock(equipment)
+    if equipment.status in (Equipment.Status.MAINTENANCE, Equipment.Status.FAULT):
+        raise EquipmentError(f"{equipment.code} cannot fail while {equipment.get_status_display().lower()}.")
+    equipment.status = Equipment.Status.FAULT
+    equipment.save(update_fields=["status"])
+    return equipment

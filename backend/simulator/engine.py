@@ -1,6 +1,7 @@
 import math
 from datetime import timedelta
-
+from .devices import DeviceSimulator
+from .physiology import VitalsSimulator
 import numpy as np
 from django.utils import timezone
 from faker import Faker
@@ -20,6 +21,8 @@ class Simulator:
         self.rng = np.random.default_rng(self.seed)
         self.fake = Faker(self.config.name_locale)
         self.fake.seed_instance(self.seed)
+        self.vitals = VitalsSimulator(self)
+        self.devices = DeviceSimulator(self)
 
     def step(self, now, hours):
         """Advance the hospital by `hours` of hospital time, ending at `now`."""
@@ -28,6 +31,8 @@ class Simulator:
         self.move_ed_queue_into_bays(now)
         self.process_due_admissions(now)
         self.clean_beds(now)
+        self.vitals.step(now)
+        self.devices.step(now)
 
     # ---------- arrivals ----------
 
@@ -81,7 +86,7 @@ class Simulator:
     def process_due_admissions(self, now):
         due = Admission.objects.filter(
             discharged_at__isnull=True, expected_discharge_at__lte=now
-        ).select_related("bed__unit", "emergency_arrival")
+        ).select_related("bed__unit", "emergency_arrival","physiology")
         for admission in due:
             unit_type = admission.bed.unit.unit_type
             decide = self.decision_rng(admission, unit_type)

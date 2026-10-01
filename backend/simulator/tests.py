@@ -3,11 +3,11 @@ from django.test import TestCase
 from dataclasses import replace
 from datetime import timedelta
 from io import StringIO
-
+from equipment import services as equipment_services
 from django.core.management import CommandError, call_command
 from django.test import TestCase
 from django.utils import timezone
-
+from .models import InjectedFault
 from accounts.models import User
 from equipment.models import Equipment
 from hospital import services
@@ -52,9 +52,13 @@ class SeedHospitalTests(TestCase):
             self.assertTrue(unit.map_y < bed.map_y < unit.map_y + unit.map_height, bed.code)
 
 class SimulatorTests(TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         call_command("seed_hospital", stdout=StringIO())
+
+    def setUp(self):
         self.now = timezone.now()
+
 
     def simulator(self, **overrides):
         return Simulator(config=replace(SimulationConfig(), **overrides), seed=1)
@@ -101,3 +105,64 @@ class SimulatorTests(TestCase):
             runs.append(sorted(Patient.objects.values_list("first_name", "last_name")))
         self.assertTrue(runs[0])
         self.assertEqual(runs[0], runs[1])
+
+class SimulatedDataTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_hospital", stdout=StringIO())
+
+    def setUp(self):
+        self.now = timezone.now()
+
+    def simulator(self, **overrides):
+        return Simulator(config=replace(SimulationConfig(), **overrides), seed=1)
+
+    def admit(self, simulator, unit_code):
+        bed = Bed.objects.filter(unit__code=unit_code, status=Bed.Status.FREE).first()
+        return services.admit_patient(
+            patient=simulator.new_patient(self.now), bed=bed,
+            admitted_at=self.now, expected_discharge_at=self.now + timedelta(days=10),
+        )
+
+    def test_icu_patient_gets_vitals_every_15_minutes(self):
+        simulator = self.simulator(deterioration_probability=0)
+        admission = self.admit(simulator, "ICU")
+        simulator.vitals.step(self.now)
+        simulator.vitals.step(self.now + timedelta(hours=2))
+        self.assertEqual(admission.vitals.count(), 9)  # at 0, 15, 30, ... 120 minutes
+        self.assertEqual(admission.vitals.exclude(temperature=None).count(), 1)  # every 4 hours
+
+    def test_deteriorating_ward_patient_worsens_and_moves_to_icu(self):
+        simulator = self.simulator(deterioration_probability=1.0, deterioration_onset_hours=(0, 0.01))
+        admission = self.admit(simulator, "WA")
+        for hour in range(15):
+            simulator.vitals.step(self.now + timedelta(hours=hour))
+        readings = admission.vitals.order_by("recorded_at")
+        first, last = readings.first(), readings.last()
+        self.assertGreater(last.heart_rate, first.heart_rate + 15)
+        self.assertLess(last.spo2, first.spo2 - 3)
+        admission.refresh_from_db()
+        self.assertEqual(admission.bed.unit.code, "ICU")
+
+    def test_device_fault_progresses_to_failure(self):
+        simulator = self.simulator(faults_per_device_per_day=0, telemetry_interval_minutes=60)
+        device = Equipment.objects.get(code="VENT-01")
+        fault = simulator.devices.start_fault(device, self.now)
+        for hour in range(40):
+            simulator.devices.step(self.now + timedelta(hours=hour))
+        device.refresh_from_db()
+        fault.refresh_from_db()
+        self.assertEqual(device.status, Equipment.Status.FAULT)
+        self.assertIsNotNone(fault.failed_at)
+        readings = device.readings.order_by("recorded_at")
+        self.assertGreater(readings.last().temperature, readings.first().temperature + 4)
+
+    def test_maintenance_before_failure_clears_the_fault(self):
+        simulator = self.simulator(faults_per_device_per_day=0)
+        device = Equipment.objects.get(code="VENT-02")
+        fault = simulator.devices.start_fault(device, self.now)
+        equipment_services.start_maintenance(equipment=device, reason="Anomaly detected")
+        equipment_services.finish_maintenance(equipment=device)
+        simulator.devices.step(self.now + timedelta(hours=1))
+        fault.refresh_from_db()
+        self.assertTrue(fault.caught_before_failure)
