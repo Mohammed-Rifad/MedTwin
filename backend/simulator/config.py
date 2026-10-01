@@ -20,21 +20,26 @@ COMPLAINTS = {
 
 @dataclass(frozen=True)
 class SimulationConfig:
-    ed_arrivals_per_hour: float = 1.6
+    ed_arrivals_per_hour: float = 1.5
     elective_admissions_per_day: float = 1.0
     hourly_pattern: tuple = HOURLY_PATTERN
     weekday_pattern: tuple = WEEKDAY_PATTERN
     triage_probabilities: tuple = (0.02, 0.13, 0.45, 0.30, 0.10)
-    # triage level -> (probability of ICU, probability of ward); everyone else goes home from the ED
+        # triage level -> (probability of ICU, probability of ward); everyone else goes home from the ED.
+    # Assumption, tuned so that occupancy is about 80% (eICU has no ED data).
     ed_disposition: dict = field(default_factory=lambda: {
-        1: (0.60, 0.35), 2: (0.20, 0.50), 3: (0.02, 0.30), 4: (0.0, 0.05), 5: (0.0, 0.01),
+        1: (0.70, 0.25), 2: (0.35, 0.45), 3: (0.07, 0.12), 4: (0.0, 0.03), 5: (0.0, 0.0),
     })
+
     # Lengths of stay: (median hours, spread) of a lognormal distribution
     ed_stay: tuple = (3.0, 0.5)
-    icu_stay: tuple = (60.0, 0.6)
-    ward_stay: tuple = (72.0, 0.6)
+    # Source for the next four values: eICU-CRD Demo v2.0.1 (2,520 ICU stays),
+    # notebook ml/notebooks/01_simulator_calibration.ipynb
+    icu_stay: tuple = (35.1, 1.05)
+    ward_stay: tuple = (59.9, 1.11)
     icu_step_down_probability: float = 0.75
-    icu_mortality: float = 0.08
+    icu_mortality: float = 0.05
+
     ward_mortality: float = 0.01
     cleaning_minutes: tuple = (45, 90)
     boarding_retry_minutes: float = 30

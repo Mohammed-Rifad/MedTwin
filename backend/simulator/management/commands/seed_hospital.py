@@ -10,8 +10,9 @@ from hospital.models import Admission, Bed, EmergencyArrival, Patient, Unit
 UNITS = [
     ("ICU", "Intensive Care Unit", Unit.UnitType.ICU, (20, 20, 460, 270), 2, 6),
     ("ED", "Emergency Department", Unit.UnitType.ED, (520, 20, 460, 270), 2, 5),
-    ("WA", "Ward A", Unit.UnitType.WARD, (20, 310, 460, 270), 3, 5),
-    ("WB", "Ward B", Unit.UnitType.WARD, (520, 310, 460, 270), 3, 5),
+    ("WA", "Ward A", Unit.UnitType.WARD, (20, 310, 460, 270), 4, 6),
+    ("WB", "Ward B", Unit.UnitType.WARD, (520, 310, 460, 270), 4, 6),
+
 ]
 
 # kind, code prefix, model name, unit code, how many (attached to that unit's first beds)

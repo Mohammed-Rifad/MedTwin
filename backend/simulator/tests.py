@@ -12,7 +12,7 @@ from accounts.models import User
 from equipment.models import Equipment
 from hospital import services
 from hospital.models import Admission, Bed, EmergencyArrival, Patient, Unit
-
+from .calibration import expected_census
 from .config import SimulationConfig
 from .engine import Simulator
 
@@ -28,7 +28,7 @@ class SeedHospitalTests(TestCase):
     def test_creates_demo_hospital(self):
         self.seed()
         self.assertEqual(Unit.objects.count(), 4)
-        self.assertEqual(Bed.objects.count(), 52)
+        self.assertEqual(Bed.objects.count(), 70)
         self.assertFalse(Bed.objects.exclude(status=Bed.Status.FREE).exists())
         self.assertEqual(Equipment.objects.count(), 30)
         self.assertEqual(User.objects.get(username="demo_doctor").role, User.Role.DOCTOR)
@@ -41,7 +41,7 @@ class SeedHospitalTests(TestCase):
     def test_reset_rebuilds_the_same_hospital(self):
         self.seed()
         self.seed("--reset")
-        self.assertEqual(Bed.objects.count(), 52)
+        self.assertEqual(Bed.objects.count(), 70)
         self.assertEqual(Equipment.objects.count(), 30)
 
     def test_beds_are_inside_their_unit_on_the_map(self):
@@ -166,3 +166,11 @@ class SimulatedDataTests(TestCase):
         simulator.devices.step(self.now + timedelta(hours=1))
         fault.refresh_from_db()
         self.assertTrue(fault.caught_before_failure)
+
+
+class CalibrationTests(TestCase):
+    def test_twice_the_arrivals_means_twice_the_patients(self):
+        single = replace(SimulationConfig(), elective_admissions_per_day=0)
+        doubled = replace(single, ed_arrivals_per_hour=single.ed_arrivals_per_hour * 2)
+        for unit_type, patients in expected_census(single).items():
+            self.assertAlmostEqual(expected_census(doubled)[unit_type], 2 * patients)
