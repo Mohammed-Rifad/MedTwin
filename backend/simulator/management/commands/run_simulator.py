@@ -31,6 +31,8 @@ class Command(BaseCommand):
         try:
             while True:
                 time.sleep(options["tick"])
+                HospitalClock.objects.filter(pk=1).update(heartbeat_at=timezone.now())
+
                 clock.refresh_from_db()
                 now = clock.now()
                 if now <= last:

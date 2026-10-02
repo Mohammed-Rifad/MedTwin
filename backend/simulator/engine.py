@@ -57,6 +57,16 @@ class Simulator:
                 complaint=str(self.rng.choice(COMPLAINTS[triage])),
                 arrived_at=now - timedelta(hours=hours * self.rng.random()),
             )
+    def create_surge(self, now, patients, triage_level=None):
+        """A sudden group of emergency patients, e.g. after an accident. Sicker than usual."""
+        for _ in range(patients):
+            triage = triage_level or int(self.rng.choice([1, 2, 3], p=[0.15, 0.35, 0.50]))
+            EmergencyArrival.objects.create(
+                patient=self.new_patient(now),
+                triage_level=triage,
+                complaint=str(self.rng.choice(COMPLAINTS[triage])),
+                arrived_at=now,
+            )
 
     def create_elective_admissions(self, now, hours):
         if not 8 <= timezone.localtime(now).hour < 16:

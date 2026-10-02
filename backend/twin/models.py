@@ -9,6 +9,9 @@ class HospitalClock(models.Model):
     running = models.BooleanField(default=False)
     anchor_sim_time = models.DateTimeField(null=True, blank=True)
     anchor_real_time = models.DateTimeField(null=True, blank=True)
+    heartbeat_at = models.DateTimeField(null=True, blank=True)
+
+    CLOCK_FIELDS = ["speed", "running", "anchor_sim_time", "anchor_real_time"]
 
     def __str__(self):
         state = "running" if self.running else "paused"
@@ -31,12 +34,14 @@ class HospitalClock(models.Model):
         if speed is not None:
             self.speed = speed
         self.running = True
-        self.save()
+        self.save(update_fields=self.CLOCK_FIELDS)
+
 
     def pause(self):
         self._re_anchor()
         self.running = False
-        self.save()
+        self.save(update_fields=self.CLOCK_FIELDS)
+
 
     def _re_anchor(self):
         self.anchor_sim_time = self.now()
