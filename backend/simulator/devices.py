@@ -5,7 +5,7 @@ from django.db.models import F
 from equipment import services as equipment_services
 from equipment.models import Equipment
 from hospital.models import Bed
-
+import numpy as np
 from .models import InjectedFault
 
 # Normal internal temperature (°C) of each kind of device when idle
@@ -27,6 +27,7 @@ class DeviceSimulator:
         return self.sim.config
 
     def step(self, now):
+        self.repair_failed_devices(now)
         self.clear_repaired_faults()
         interval = timedelta(minutes=self.config.telemetry_interval_minutes)
         chance = self.config.faults_per_device_per_day * self.config.telemetry_interval_minutes / 1440
@@ -48,9 +49,8 @@ class DeviceSimulator:
                 if progress >= 1.0:
                     self.fail(device, fault, due)
                     break
-                equipment_services.record_telemetry(
-                    equipment=device, recorded_at=due, **self.reading(device, progress, interval)
-                )
+                self.sim.save_telemetry(device, due, self.reading(device, progress, interval))
+
                 due += interval
             self.next_reading[device.pk] = due
 
@@ -99,3 +99,18 @@ class DeviceSimulator:
             fault.cleared_at = fault.equipment.last_serviced_at
             fault.save(update_fields=["cleared_at"])
             self.next_reading.pop(fault.equipment_id, None)
+
+    def repair_failed_devices(self, now):
+        """The hospital's technicians repair broken machines 24-72 hours after they break."""
+        broken = InjectedFault.objects.filter(
+            failed_at__isnull=False, cleared_at__isnull=True, equipment__status=Equipment.Status.FAULT
+        ).select_related("equipment")
+        for fault in broken:
+            wait = np.random.default_rng([self.sim.seed, fault.pk]).uniform(*self.config.repair_hours)
+            if now >= fault.failed_at + timedelta(hours=wait):
+                equipment_services.start_maintenance(
+                    equipment=fault.equipment, reason="Repair after failure", at=now - timedelta(hours=2)
+                )
+                equipment_services.finish_maintenance(
+                    equipment=fault.equipment, notes="Repaired by technician", at=now
+                )

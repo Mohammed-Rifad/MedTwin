@@ -7,22 +7,29 @@ from django.utils import timezone
 from faker import Faker
 
 from hospital import services
-from hospital.models import Admission, Bed, EmergencyArrival, Patient, Unit
-
+from hospital.models import Admission, Bed, EmergencyArrival, Patient, Unit, VitalReading
+from equipment import services as equipment_services
+from equipment.models import EquipmentReading
+from hospital.models import Admission, Bed, EmergencyArrival, Patient, Unit, VitalReading
 from .config import COMPLAINTS, SimulationConfig
 
 STAGE = {Unit.UnitType.ED: 0, Unit.UnitType.ICU: 1, Unit.UnitType.WARD: 2}
 
 
 class Simulator:
-    def __init__(self, config=None, seed=None):
+    
+    def __init__(self, config=None, seed=None, history=False):
         self.config = config or SimulationConfig()
         self.seed = seed if seed is not None else int(np.random.SeedSequence().entropy % 2**32)
         self.rng = np.random.default_rng(self.seed)
         self.fake = Faker(self.config.name_locale)
         self.fake.seed_instance(self.seed)
+        self.history = history
+        self.vital_buffer = []
+        self.telemetry_buffer = []
         self.vitals = VitalsSimulator(self)
         self.devices = DeviceSimulator(self)
+
 
     def step(self, now, hours):
         """Advance the hospital by `hours` of hospital time, ending at `now`."""
@@ -145,6 +152,27 @@ class Simulator:
                 services.mark_bed_clean(bed=bed, at=now)
 
     # ---------- helpers ----------
+
+        # ---------- saving readings ----------
+
+    def save_vitals(self, admission, recorded_at, values):
+        if self.history:
+            self.vital_buffer.append(VitalReading(admission=admission, recorded_at=recorded_at, **values))
+        else:
+            services.record_vitals(admission=admission, recorded_at=recorded_at, **values)
+
+    def save_telemetry(self, equipment, recorded_at, values):
+        if self.history:
+            self.telemetry_buffer.append(EquipmentReading(equipment=equipment, recorded_at=recorded_at, **values))
+        else:
+            equipment_services.record_telemetry(equipment=equipment, recorded_at=recorded_at, **values)
+
+    def flush(self):
+        """Save everything in the baskets to the database, thousands of rows at a time."""
+        VitalReading.objects.bulk_create(self.vital_buffer, batch_size=5000)
+        EquipmentReading.objects.bulk_create(self.telemetry_buffer, batch_size=5000)
+        self.vital_buffer.clear()
+        self.telemetry_buffer.clear()
 
     def decision_rng(self, admission, unit_type):
         """Random numbers fixed per admission and stage, so retries give the same decision."""

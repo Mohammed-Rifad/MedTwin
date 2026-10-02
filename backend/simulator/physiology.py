@@ -126,7 +126,9 @@ class VitalsSimulator:
                 values["temperature"] = None
             else:
                 physiology.last_temperature_at = due
+            
             services.record_vitals(admission=admission, recorded_at=due, **values)
+
             physiology.last_reading_at = due
             due += interval
         physiology.save(update_fields=["last_reading_at", "last_temperature_at"])

@@ -15,7 +15,9 @@ from hospital.models import Admission, Bed, EmergencyArrival, Patient, Unit
 from .calibration import expected_census
 from .config import SimulationConfig
 from .engine import Simulator
-
+from equipment.models import EquipmentReading
+from hospital.models import VitalReading
+from twin.models import HospitalClock
 from accounts.models import User
 from equipment.models import Equipment
 from hospital.models import Bed, Unit
@@ -167,6 +169,18 @@ class SimulatedDataTests(TestCase):
         fault.refresh_from_db()
         self.assertTrue(fault.caught_before_failure)
 
+    def test_broken_device_is_repaired_by_technician(self):
+        simulator = self.simulator(faults_per_device_per_day=0, telemetry_interval_minutes=60)
+        device = Equipment.objects.get(code="VENT-03")
+        fault = simulator.devices.start_fault(device, self.now)
+        for hour in range(0, 120, 6):
+            simulator.devices.step(self.now + timedelta(hours=hour))
+        device.refresh_from_db()
+        fault.refresh_from_db()
+        self.assertIsNotNone(fault.failed_at)
+        self.assertIsNotNone(fault.cleared_at)
+        self.assertEqual(device.status, Equipment.Status.OK)
+
 
 class CalibrationTests(TestCase):
     def test_twice_the_arrivals_means_twice_the_patients(self):
@@ -174,3 +188,17 @@ class CalibrationTests(TestCase):
         doubled = replace(single, ed_arrivals_per_hour=single.ed_arrivals_per_hour * 2)
         for unit_type, patients in expected_census(single).items():
             self.assertAlmostEqual(expected_census(doubled)[unit_type], 2 * patients)
+
+
+class HistoryTests(TestCase):
+    def test_generates_history_ending_now(self):
+        call_command("generate_history", "--reset", "--days", "1", "--step-minutes", "60", stdout=StringIO())
+        self.assertGreater(EquipmentReading.objects.count(), 4000)  # 30 devices x 6 per hour x 24 hours
+        self.assertTrue(VitalReading.objects.exists())
+        clock = HospitalClock.load()
+        self.assertFalse(clock.running)
+        self.assertLess(abs(clock.now() - timezone.now()), timedelta(minutes=2))
+
+    def test_requires_reset_flag(self):
+        with self.assertRaises(CommandError):
+            call_command("generate_history", stdout=StringIO())

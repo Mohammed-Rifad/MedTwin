@@ -13,22 +13,28 @@ def _lock(equipment):
 
 
 @transaction.atomic
-def start_maintenance(*, equipment, reason, by=None):
+def start_maintenance(*, equipment, reason, by=None, at=None):
     equipment = _lock(equipment)
     if equipment.status == Equipment.Status.MAINTENANCE:
         raise EquipmentError(f"{equipment.code} is already in maintenance.")
-    MaintenanceLog.objects.create(equipment=equipment, reason=reason,started_at=clock.now(), started_by=by)
+    
+    MaintenanceLog.objects.create(
+        equipment=equipment, reason=reason, started_by=by, started_at=at or clock.now()
+    )
+
     equipment.status = Equipment.Status.MAINTENANCE
     equipment.save(update_fields=["status"])
     return equipment
 
 
 @transaction.atomic
-def finish_maintenance(*, equipment, notes="", by=None):
+def finish_maintenance(*, equipment, notes="", by=None, at=None):
     equipment = _lock(equipment)
     if equipment.status != Equipment.Status.MAINTENANCE:
         raise EquipmentError(f"{equipment.code} is not in maintenance.")
-    now = clock.now()
+    
+    now = at or clock.now()
+
     log = equipment.maintenance_logs.filter(finished_at__isnull=True).first()
     if log is not None:
         log.finished_at = now

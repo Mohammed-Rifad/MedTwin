@@ -55,3 +55,4 @@ class SimulationConfig:
     telemetry_interval_minutes: float = 10
     faults_per_device_per_day: float = 1 / 60
     fault_hours_to_failure: tuple = (12, 36)
+    repair_hours: tuple = (24, 72)
