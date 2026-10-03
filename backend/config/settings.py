@@ -33,6 +33,8 @@ CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS")
 # Application definition
 
 INSTALLED_APPS = [
+
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -49,7 +51,9 @@ INSTALLED_APPS = [
     'hospital',
     'predictions',
     'simulator',
-    'twin'
+    'twin',
+   
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -106,6 +110,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
 
 
 # Database
@@ -116,6 +121,18 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 DATABASES = {"default": env.db("DATABASE_URL")}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [{
+                "address": env("REDIS_URL", default="redis://localhost:6379/0"),
+                "socket_timeout": 30,
+            }],
+        },
+    },
+}
 
 
 
@@ -164,3 +181,5 @@ TESTING = "test" in sys.argv
 
 if TESTING:
     PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+    
