@@ -2,7 +2,7 @@ import time
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-
+from twin import events
 from config.errors import DomainError
 from hospital.models import EmergencyArrival, Unit
 from simulator.engine import Simulator
@@ -34,6 +34,8 @@ class Command(BaseCommand):
                 HospitalClock.objects.filter(pk=1).update(heartbeat_at=timezone.now())
 
                 clock.refresh_from_db()
+                events.clock_ticked(clock)
+
                 now = clock.now()
                 if now <= last:
                     continue  # paused

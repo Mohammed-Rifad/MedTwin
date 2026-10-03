@@ -1,10 +1,11 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
+from twin import events
 from accounts.audit import log_action
 from accounts.models import AuditLog
 from accounts.permissions import IsAdminOrReadOnly
+from contextlib import contextmanager
 
 from . import services
 from .models import Equipment
@@ -31,10 +32,12 @@ class EquipmentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         equipment = serializer.save()
         log_action(self.request, AuditLog.Action.CREATE, equipment, "Registered device")
+        events.equipment_changed(equipment)
 
     def perform_update(self, serializer):
         equipment = serializer.save()
         log_action(self.request, AuditLog.Action.UPDATE, equipment, "Updated device")
+        events.equipment_changed(equipment)
 
     @action(detail=True, methods=["post"], url_path="start-maintenance")
     def start_maintenance(self, request, pk=None):

@@ -1,5 +1,5 @@
 from django.db import transaction
-
+from twin import clock, events
 from config.errors import DomainError
 from twin import clock
 
@@ -18,6 +18,7 @@ def _set_bed_status(bed, status, at):
     bed.status = status
     bed.status_since = at
     bed.save(update_fields=["status", "status_since"])
+    events.bed_changed(bed)
 
 
 @transaction.atomic
@@ -48,7 +49,9 @@ def admit_patient(*, patient, bed, reason="", by=None, admitted_at=None,
         emergency_arrival.status = EmergencyArrival.Status.ADMITTED
         emergency_arrival.admission = admission
         emergency_arrival.save(update_fields=["status", "admission"])
+        events.emergency_changed(emergency_arrival)
 
+    events.admission_changed(admission, "admitted")
     return admission
 
 
@@ -80,6 +83,8 @@ def transfer_patient(*, admission, to_bed, by=None, transferred_at=None, expecte
     admission.save(update_fields=fields)
     _set_bed_status(from_bed, Bed.Status.CLEANING, transferred_at)
     _set_bed_status(to_bed, Bed.Status.OCCUPIED, transferred_at)
+    
+    events.admission_changed(admission, "transferred")
     return admission
 
 
@@ -95,6 +100,8 @@ def discharge_patient(*, admission, outcome, by=None, discharged_at=None):
     admission.discharged_by = by
     admission.save(update_fields=["discharged_at", "outcome", "discharged_by"])
     _set_bed_status(bed, Bed.Status.CLEANING, discharged_at)
+    events.admission_changed(admission, "discharged")
+
     return admission
 
 
@@ -122,6 +129,7 @@ def record_vitals(*, admission, source=VitalReading.Source.MONITOR, by=None, rec
     )
     reading.full_clean()
     reading.save()
+    events.vitals_recorded(reading)
     return reading
 
 
@@ -130,4 +138,17 @@ def discharge_from_emergency(*, arrival):
         raise HospitalError("This emergency patient is no longer waiting.")
     arrival.status = EmergencyArrival.Status.DISCHARGED
     arrival.save(update_fields=["status"])
+    events.emergency_changed(arrival)
+    return arrival
+
+
+def log_emergency_arrival(*, patient, triage_level, complaint, by=None, arrived_at=None):
+    arrival = EmergencyArrival.objects.create(
+        patient=patient,
+        triage_level=triage_level,
+        complaint=complaint,
+        logged_by=by,
+        arrived_at=arrived_at or clock.now(),
+    )
+    events.emergency_changed(arrival)
     return arrival

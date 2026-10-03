@@ -4,7 +4,7 @@ from datetime import timedelta
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
-
+from twin.broadcast import broadcast, muted
 from hospital.models import Admission, VitalReading
 from simulator.engine import Simulator
 from twin.models import HospitalClock
@@ -31,15 +31,16 @@ class Command(BaseCommand):
         started = time.monotonic()
 
         now = start
-        while now < end:
-            now = min(now + step, end)
-            simulator.step(now, step / timedelta(hours=1))
-            simulator.flush()
-            if (now - start) % timedelta(days=7) < step:
-                self.stdout.write(
-                    f"{timezone.localtime(now):%d %b %Y}: {Admission.objects.count()} admissions, "
-                    f"{VitalReading.objects.count()} vital readings ({time.monotonic() - started:.0f}s)"
-                )
+        with muted():
+            while now < end:
+                now = min(now + step, end)
+                simulator.step(now, step / timedelta(hours=1))
+                simulator.flush()
+                if (now - start) % timedelta(days=7) < step:
+                    self.stdout.write(
+                        f"{timezone.localtime(now):%d %b %Y}: {Admission.objects.count()} admissions, "
+                        f"{VitalReading.objects.count()} vital readings ({time.monotonic() - started:.0f}s)"
+                    )
 
         clock = HospitalClock.load()
         clock.anchor_sim_time = end
@@ -50,3 +51,5 @@ class Command(BaseCommand):
             f"Simulated {options['days']} days in {time.monotonic() - started:.0f}s. "
             "Start the live simulator with run_simulator."
         ))
+        broadcast("reload", {})
+

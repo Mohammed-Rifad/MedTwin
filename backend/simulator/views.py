@@ -4,7 +4,7 @@ from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-
+from twin import clock, events
 from accounts.audit import log_action
 from accounts.models import AuditLog
 from accounts.permissions import IsAdminRole
@@ -60,6 +60,7 @@ def start(request):
     data = StartSerializer(data=request.data)
     data.is_valid(raise_exception=True)
     HospitalClock.load().start(speed=data.validated_data.get("speed"))
+    events.clock_ticked(HospitalClock.load())
     return Response(clock_status())
 
 
@@ -67,6 +68,7 @@ def start(request):
 @permission_classes([IsAdminRole])
 def pause(request):
     HospitalClock.load().pause()
+    events.clock_ticked(HospitalClock.load())
     return Response(clock_status())
 
 

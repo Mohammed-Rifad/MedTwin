@@ -173,8 +173,10 @@ class EmergencyArrivalViewSet(
     }
 
     def perform_create(self, serializer):
-        arrival = serializer.save(logged_by=self.request.user, arrived_at=clock.now())
+        arrival = services.log_emergency_arrival(by=self.request.user, **serializer.validated_data)
+        serializer.instance = arrival
         log_action(self.request, AuditLog.Action.CREATE, arrival, f"ED arrival, triage {arrival.triage_level}")
+ 
 
     @action(detail=True, methods=["post"])
     def admit(self, request, pk=None):
