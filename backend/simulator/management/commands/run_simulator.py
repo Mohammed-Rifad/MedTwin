@@ -49,9 +49,12 @@ class Command(BaseCommand):
                     last_report = hour
                     self.report(now)
         except KeyboardInterrupt:
+            pass
+        finally:
             clock.refresh_from_db()
             clock.pause()
             self.stdout.write("\nSimulator stopped. Hospital clock paused.")
+
 
     def report(self, now):
         units = "  ".join(f"{unit.code} {unit.occupied_count}/{unit.capacity}" for unit in Unit.objects.order_by("code"))

@@ -87,7 +87,8 @@ class DeviceSimulator:
     def fail(self, device, fault, at):
         fault.failed_at = at
         fault.save(update_fields=["failed_at"])
-        equipment_services.mark_failed(equipment=device)
+        equipment_services.mark_failed(equipment=device, at=at)
+
 
     def clear_repaired_faults(self):
         repaired = InjectedFault.objects.filter(

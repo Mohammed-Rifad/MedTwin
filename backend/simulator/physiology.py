@@ -84,7 +84,8 @@ class VitalsSimulator:
             return min(1.0, (now - onset) / to_peak)
         at_escalation = min(1.0, (physiology.escalated_at - onset) / to_peak)
         recovered = (now - physiology.escalated_at) / timedelta(hours=self.config.recovery_hours)
-        return max(0.0, at_escalation * (1 - recovered))
+        return min(1.0, max(0.0, at_escalation * (1 - recovered)))
+
 
     def is_unwell(self, admission, now):
         physiology = getattr(admission, "physiology", None)
@@ -114,9 +115,11 @@ class VitalsSimulator:
     def record_due_readings(self, admission, physiology, now):
         interval = timedelta(minutes=self.config.reading_interval_minutes[admission.bed.unit.unit_type])
         if physiology.last_reading_at is None:
-            due = max(admission.admitted_at, now - interval)
+            due = admission.admitted_at
         else:
             due = physiology.last_reading_at + interval
+        due = max(due, now - timedelta(hours=6))  # never fill in more than 6 hours of missed readings
+
         if due > now:
             return
         temperature_gap = timedelta(hours=self.config.temperature_interval_hours)
@@ -127,7 +130,8 @@ class VitalsSimulator:
             else:
                 physiology.last_temperature_at = due
             
-            services.record_vitals(admission=admission, recorded_at=due, **values)
+            self.sim.save_vitals(admission, due, values)
+
 
             physiology.last_reading_at = due
             due += interval

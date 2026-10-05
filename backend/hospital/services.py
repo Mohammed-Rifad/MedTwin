@@ -2,7 +2,7 @@ from django.db import transaction
 from twin import clock, events
 from config.errors import DomainError
 from twin import clock
-
+from alerts import checks
 from .models import Admission, Bed, EmergencyArrival, Transfer, VitalReading
 
 
@@ -19,6 +19,7 @@ def _set_bed_status(bed, status, at):
     bed.status_since = at
     bed.save(update_fields=["status", "status_since"])
     events.bed_changed(bed)
+    checks.check_occupancy(bed.unit, at)
 
 
 @transaction.atomic
@@ -100,6 +101,8 @@ def discharge_patient(*, admission, outcome, by=None, discharged_at=None):
     admission.discharged_by = by
     admission.save(update_fields=["discharged_at", "outcome", "discharged_by"])
     _set_bed_status(bed, Bed.Status.CLEANING, discharged_at)
+    checks.patient_left(admission, discharged_at)
+    checks.patient_left(admission, discharged_at)
     events.admission_changed(admission, "discharged")
 
     return admission
@@ -130,6 +133,9 @@ def record_vitals(*, admission, source=VitalReading.Source.MONITOR, by=None, rec
     reading.full_clean()
     reading.save()
     events.vitals_recorded(reading)
+    checks.check_vitals(reading)
+
+
     return reading
 
 

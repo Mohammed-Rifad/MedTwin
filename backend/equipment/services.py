@@ -3,6 +3,7 @@ from twin import clock
 from config.errors import DomainError
 from .models import Equipment, EquipmentReading, MaintenanceLog
 from twin import clock, events
+from alerts import checks
 
 
 class EquipmentError(DomainError):
@@ -48,6 +49,7 @@ def finish_maintenance(*, equipment, notes="", by=None, at=None):
     equipment.last_serviced_at = now
     equipment.anomaly_score = None
     equipment.save(update_fields=["status", "last_serviced_at", "anomaly_score"])
+    checks.equipment_repaired(equipment, now)
     events.equipment_changed(equipment)
 
     return equipment
@@ -59,16 +61,18 @@ def record_telemetry(*, equipment, recorded_at=None, **values):
     reading = EquipmentReading.objects.create(
         equipment=equipment, recorded_at=recorded_at or clock.now(), **values
     )
+    checks.check_telemetry(reading)
     events.telemetry_recorded(reading)
     return reading
 
 
 @transaction.atomic
-def mark_failed(*, equipment):
+def mark_failed(*, equipment, at=None):
     equipment = _lock(equipment)
     if equipment.status in (Equipment.Status.MAINTENANCE, Equipment.Status.FAULT):
         raise EquipmentError(f"{equipment.code} cannot fail while {equipment.get_status_display().lower()}.")
     equipment.status = Equipment.Status.FAULT
     equipment.save(update_fields=["status"])
+    checks.equipment_failed(equipment, at or clock.now())
     events.equipment_changed(equipment)
     return equipment
