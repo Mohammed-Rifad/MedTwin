@@ -63,3 +63,22 @@ class Alert(models.Model):
 
     def __str__(self):
         return f"[{self.severity}] {self.message}"
+
+
+class AlertThreshold(models.Model):
+    """An admin's change to one rule's limits. Rules without a row use the defaults in rules.py."""
+
+    key = models.CharField(max_length=50, unique=True, help_text='Rule key, e.g. "spo2" or "occupancy".')
+    warning = models.FloatField()
+    critical = models.FloatField()
+    clear = models.FloatField()
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["key"]
+
+    def __str__(self):
+        return f"{self.key}: warning {self.warning:g}, critical {self.critical:g}, clear {self.clear:g}"

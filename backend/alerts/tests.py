@@ -1,9 +1,7 @@
 from datetime import date, timedelta
-
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.utils import timezone
-
 from equipment import services as equipment_services
 from equipment.models import Equipment
 from hospital import services

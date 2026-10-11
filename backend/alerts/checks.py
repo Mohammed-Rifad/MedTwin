@@ -1,5 +1,5 @@
 from .models import Alert
-from .rules import EQUIPMENT_TEMPERATURE_RULES, OCCUPANCY_RULE, VITAL_RULES
+from .rules import VITAL_FIELDS, equipment_temperature_key, get_rule
 from .services import active_alerts, raise_alert, resolve_alerts
 
 
@@ -24,10 +24,10 @@ def check_vitals(reading):
     subject = f"admission:{admission.pk}"
     open_kinds = _open_kinds(subject)
     name = lambda: f"{admission.patient.full_name} ({admission.bed.code})"  # noqa: E731
-    for field, rule in VITAL_RULES.items():
+    for field in VITAL_FIELDS:
         value = getattr(reading, field)
         if value is not None:
-            _apply(rule, value, subject, open_kinds, reading.recorded_at, name, admission=admission)
+            _apply(get_rule(field), value, subject, open_kinds, reading.recorded_at, name, admission=admission)
 
 
 def check_occupancy(unit, at):
@@ -35,12 +35,12 @@ def check_occupancy(unit, at):
         return
     occupancy = round(100 * unit.occupied_count / unit.capacity)
     subject = f"unit:{unit.pk}"
-    _apply(OCCUPANCY_RULE, occupancy, subject, _open_kinds(subject), at, lambda: unit.name, unit=unit)
+    _apply(get_rule("occupancy"), occupancy, subject, _open_kinds(subject), at, lambda: unit.name, unit=unit)
 
 
 def check_telemetry(reading):
     equipment = reading.equipment
-    rule = EQUIPMENT_TEMPERATURE_RULES[equipment.kind]
+    rule = get_rule(equipment_temperature_key(equipment.kind))
     subject = f"equipment:{equipment.pk}"
     _apply(rule, reading.temperature, subject, _open_kinds(subject), reading.recorded_at, lambda: equipment.code, equipment=equipment)
 

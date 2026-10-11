@@ -1,3 +1,4 @@
+from alerts.serializers import AlertSerializer
 from equipment.serializers import EquipmentReadingSerializer, EquipmentSerializer
 from hospital.serializers import (
     AdmissionSerializer,
@@ -31,6 +32,10 @@ def equipment_changed(equipment):
 
 def telemetry_recorded(reading):
     broadcast("telemetry", {"equipment": reading.equipment_id, **EquipmentReadingSerializer(reading).data})
+
+
+def alert_changed(alert):
+    broadcast("alert_update", AlertSerializer(alert).data)
 
 
 def clock_ticked(clock):

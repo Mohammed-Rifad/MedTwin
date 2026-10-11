@@ -177,9 +177,13 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# Admin changes to alert limits are re-read from the database at most this often.
+ALERT_THRESHOLD_CACHE_SECONDS = 30
+
 TESTING = "test" in sys.argv
 
 if TESTING:
     PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
     CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+    ALERT_THRESHOLD_CACHE_SECONDS = 0  # each test sees its own limits straight away
     

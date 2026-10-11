@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Alert
+from .models import Alert, AlertThreshold
 
 
 @admin.register(Alert)
@@ -12,3 +12,9 @@ class AlertAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         return [field.name for field in self.model._meta.fields]
+
+
+@admin.register(AlertThreshold)
+class AlertThresholdAdmin(admin.ModelAdmin):
+    list_display = ("key", "warning", "critical", "clear", "updated_by", "updated_at")
+    readonly_fields = ("updated_by", "updated_at")
