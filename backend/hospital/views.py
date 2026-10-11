@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Count, Prefetch, Q
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -7,8 +8,11 @@ from rest_framework.response import Response
 from accounts.audit import log_action
 from accounts.models import AuditLog, User
 from accounts.permissions import IsAdminOrReadOnly, RolePermissionMixin
+from alerts import checks
 from twin import clock
-from . import services
+from twin.broadcast import broadcast
+
+from . import layout, services
 from .filters import AdmissionFilter, PatientFilter
 from .models import Admission, Bed, EmergencyArrival, Patient, Unit, VitalReading
 from .serializers import (
@@ -49,6 +53,16 @@ class UnitViewSet(viewsets.ModelViewSet):
             _occupied=Count("beds", filter=active & Q(beds__status=Bed.Status.OCCUPIED)),
         ).order_by("floor", "name")
 
+    def perform_update(self, serializer):
+        unit = serializer.save()
+        log_action(self.request, AuditLog.Action.UPDATE, unit, f"Updated unit: {', '.join(serializer.validated_data)}")
+        broadcast("reload", {})
+
+
+def announce_layout_change(unit):
+    """A bed was added, closed or reopened: occupancy changes, and every open screen should refresh."""
+    checks.check_occupancy(unit, clock.now())
+    broadcast("reload", {})
 
 
 class BedViewSet(viewsets.ModelViewSet):
@@ -60,6 +74,24 @@ class BedViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Bed.objects.select_related("unit").prefetch_related(with_current_admission())
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        layout.check_room_for_another_bed(serializer.validated_data["unit"])
+        bed = serializer.save()
+        layout.arrange_beds(bed.unit)  # make room on the map: re-arrange the unit's beds in a grid
+        bed.refresh_from_db(fields=["map_x", "map_y"])
+        log_action(self.request, AuditLog.Action.CREATE, bed, f"Added bed {bed.code}")
+        announce_layout_change(bed.unit)
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        bed = serializer.save()
+        if "code" in serializer.validated_data:
+            layout.arrange_beds(bed.unit)  # beds are drawn in code order
+            bed.refresh_from_db(fields=["map_x", "map_y"])
+        log_action(self.request, AuditLog.Action.UPDATE, bed, f"Updated bed: {', '.join(serializer.validated_data)}")
+        announce_layout_change(bed.unit)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def clean(self, request, pk=None):

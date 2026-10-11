@@ -39,7 +39,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Administration",
     items: [
-      { label: "Hospital setup", href: "/settings/hospital", roles: ["ADMIN"], ready: false, day: 22 },
+      { label: "Hospital setup", href: "/settings/hospital", roles: ["ADMIN"], ready: true },
       { label: "Staff accounts", href: "/settings/staff", roles: ["ADMIN"], ready: false, day: 34 },
       { label: "Alert limits", href: "/settings/alert-limits", roles: ["ADMIN"], ready: false, day: 34 },
       { label: "Simulator", href: "/settings/simulator", roles: ["ADMIN"], ready: false, day: 33 },

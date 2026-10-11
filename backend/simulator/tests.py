@@ -139,12 +139,12 @@ class SimulatedDataTests(TestCase):
 
     def test_minor_cases_leave_without_being_seen_after_a_long_wait(self):
         simulator = self.simulator()
-        five_hours_ago = self.now - timedelta(hours=5)
+        seven_hours_ago = self.now - timedelta(hours=7)  # longer than the 6-hour limit
         minor = EmergencyArrival.objects.create(
-            patient=simulator.new_patient(self.now), triage_level=5, complaint="Rash", arrived_at=five_hours_ago
+            patient=simulator.new_patient(self.now), triage_level=5, complaint="Rash", arrived_at=seven_hours_ago
         )
         serious = EmergencyArrival.objects.create(
-            patient=simulator.new_patient(self.now), triage_level=2, complaint="Chest pain", arrived_at=five_hours_ago
+            patient=simulator.new_patient(self.now), triage_level=2, complaint="Chest pain", arrived_at=seven_hours_ago
         )
         simulator.leave_without_being_seen(self.now)
         minor.refresh_from_db()

@@ -35,7 +35,7 @@ class SimulationConfig:
     ed_stay: tuple = (3.0, 0.5)
     # Minor cases (triage 4-5) leave without being seen after waiting this long, as in real EDs.
     leave_unseen_triage_levels: tuple = (4, 5)
-    leave_unseen_after_hours: float = 4
+    leave_unseen_after_hours: float = 6
     # Source for the next four values: eICU-CRD Demo v2.0.1 (2,520 ICU stays),
     # notebook ml/notebooks/01_simulator_calibration.ipynb
     icu_stay: tuple = (35.1, 1.05)

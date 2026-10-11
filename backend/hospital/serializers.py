@@ -49,11 +49,23 @@ class BedSerializer(serializers.ModelSerializer):
         fields = (
             "id", "unit", "unit_code", "code", "status", "status_since", "is_active", "map_x", "map_y", "current_admission",
         )
-        read_only_fields = ("status", "status_since")
+        read_only_fields = ("status", "status_since", "map_x", "map_y")  # positions are worked out automatically
 
     def get_current_admission(self, obj):
         admission = current_admission_of(obj)
         return CurrentAdmissionSerializer(admission).data if admission else None
+
+    def validate(self, attrs):
+        bed = self.instance
+        if bed is not None and attrs.get("is_active") is False and bed.status == Bed.Status.OCCUPIED:
+            raise serializers.ValidationError(
+                {"is_active": f"Bed {bed.code} has a patient in it. Move or discharge them before closing the bed."}
+            )
+        if bed is not None and "unit" in attrs and attrs["unit"] != bed.unit:
+            raise serializers.ValidationError(
+                {"unit": "A bed can't move to another unit. Close it, and add a new bed in the other unit."}
+            )
+        return attrs
 
 
 class PatientSerializer(serializers.ModelSerializer):

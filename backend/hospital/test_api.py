@@ -136,3 +136,54 @@ class HospitalApiTests(APITestCase):
             Bed.objects.create(unit=self.bed1.unit, code=f"ICU-{number:02d}")
         self.assertEqual(len(self.client.get(url).data["results"]), 50)
         self.assertEqual(len(self.client.get(url, {"page_size": 500}).data["results"]), 60)
+
+
+class HospitalSetupTests(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username="admin1", password="x", role=User.Role.ADMIN)
+        self.nurse = User.objects.create_user(username="nurse1", password="x", role=User.Role.NURSE)
+        # A small unit on the map (200 x 150): room for 4 beds without overlapping.
+        self.unit = Unit.objects.create(name="ICU", code="ICU", unit_type=Unit.UnitType.ICU)
+        self.bed = Bed.objects.create(unit=self.unit, code="ICU-01")
+        self.client.force_authenticate(self.admin)
+
+    def add_bed(self, code):
+        return self.client.post(reverse("hospital:beds-list"), {"unit": self.unit.pk, "code": code}, format="json")
+
+    def test_new_beds_are_placed_inside_the_unit_without_overlapping(self):
+        for code in ("ICU-02", "ICU-03"):
+            self.assertEqual(self.add_bed(code).status_code, status.HTTP_201_CREATED)
+        beds = list(Bed.objects.filter(unit=self.unit))
+        positions = {(bed.map_x, bed.map_y) for bed in beds}
+        self.assertEqual(len(positions), 3)  # all different
+        for bed in beds:
+            self.assertTrue(self.unit.map_x < bed.map_x < self.unit.map_x + self.unit.map_width)
+            self.assertTrue(self.unit.map_y < bed.map_y < self.unit.map_y + self.unit.map_height)
+
+    def test_a_full_unit_refuses_another_bed(self):
+        for code in ("ICU-02", "ICU-03", "ICU-04"):
+            self.add_bed(code)
+        response = self.add_bed("ICU-05")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("no room", response.data["detail"])
+
+    def test_only_admins_change_the_hospital(self):
+        self.client.force_authenticate(self.nurse)
+        self.assertEqual(self.add_bed("ICU-02").status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_a_bed_with_a_patient_cannot_be_closed(self):
+        patient = Patient.objects.create(first_name="Ravi", last_name="Kumar", date_of_birth=date(1960, 1, 1), sex="M")
+        services.admit_patient(patient=patient, bed=self.bed)
+        url = reverse("hospital:beds-detail", args=[self.bed.pk])
+        response = self.client.patch(url, {"is_active": False}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("has a patient", response.data["is_active"][0])
+
+    def test_closing_a_free_bed_reduces_capacity(self):
+        self.add_bed("ICU-02")
+        url = reverse("hospital:beds-detail", args=[self.bed.pk])
+        self.assertEqual(self.client.patch(url, {"is_active": False}, format="json").status_code, status.HTTP_200_OK)
+        self.unit.refresh_from_db()
+        self.assertEqual(self.unit.capacity, 1)
+        self.assertEqual(self.client.patch(url, {"is_active": True}, format="json").status_code, status.HTTP_200_OK)
+        self.assertEqual(self.unit.capacity, 2)

@@ -4,6 +4,7 @@ from django.db import transaction
 from twin.models import HospitalClock
 from accounts.models import User
 from equipment.models import Equipment
+from hospital.layout import bed_positions
 from hospital.models import Admission, Bed, EmergencyArrival, Patient, Unit
 
 # code, name, type, (x, y, width, height) on the 1000x600 map, rows, columns
@@ -30,18 +31,6 @@ DEMO_USERS = [
     ("demo_doctor", User.Role.DOCTOR),
     ("demo_nurse", User.Role.NURSE),
 ]
-
-
-def bed_positions(x, y, width, height, rows, cols, padding=20, header=40):
-    """Yield the centre point of each bed, laid out in a grid inside the unit's rectangle."""
-    cell_width = (width - 2 * padding) / cols
-    cell_height = (height - header - padding) / rows
-    for row in range(rows):
-        for col in range(cols):
-            yield (
-                round(x + padding + cell_width * (col + 0.5)),
-                round(y + header + cell_height * (row + 0.5)),
-            )
 
 
 class Command(BaseCommand):
