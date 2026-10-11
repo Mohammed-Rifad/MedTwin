@@ -1,4 +1,10 @@
-import { TRIAGE_LABELS, type AlertSeverity, type AlertStatus } from "@/lib/types";
+import {
+  EQUIPMENT_STATUS_LABELS,
+  TRIAGE_LABELS,
+  type AlertSeverity,
+  type AlertStatus,
+  type EquipmentStatus,
+} from "@/lib/types";
 
 // Triage colours follow the usual emergency-department convention: 1 = red (most urgent) … 5 = blue.
 const TRIAGE_STYLE: Record<number, string> = {
@@ -43,4 +49,15 @@ export function AlertStatusBadge({ status }: { status: AlertStatus }) {
       {status.charAt(0) + status.slice(1).toLowerCase()}
     </span>
   );
+}
+
+const EQUIPMENT_STYLE: Record<EquipmentStatus, string> = {
+  OK: "bg-emerald-100 text-emerald-800",
+  WARNING: "bg-amber-100 text-amber-800",
+  FAULT: "bg-red-600 text-white",
+  MAINTENANCE: "bg-slate-200 text-slate-700",
+};
+
+export function EquipmentStatusBadge({ status }: { status: EquipmentStatus }) {
+  return <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${EQUIPMENT_STYLE[status]}`}>{EQUIPMENT_STATUS_LABELS[status]}</span>;
 }

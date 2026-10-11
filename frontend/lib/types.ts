@@ -163,6 +163,79 @@ export const ALERT_KIND_LABELS: Record<string, string> = {
   EQUIPMENT_FAILURE: "Equipment failure",
 };
 
+export type EquipmentKind = "VENTILATOR" | "MONITOR" | "INFUSION_PUMP";
+export type EquipmentStatus = "OK" | "WARNING" | "FAULT" | "MAINTENANCE";
+
+export type MaintenanceLog = {
+  id: number;
+  reason: string;
+  notes: string;
+  started_at: string;
+  finished_at: string | null;
+  started_by: string | null;
+  finished_by: string | null;
+};
+
+export type EquipmentReading = {
+  id: number;
+  recorded_at: string;
+  temperature: number;
+  running_hours: number;
+  error_count: number;
+  pressure: number | null;
+};
+
+export type Equipment = {
+  id: number;
+  code: string;
+  kind: EquipmentKind;
+  model_name: string;
+  unit: number | null;
+  unit_code: string | null;
+  bed: number | null;
+  bed_code: string | null;
+  status: EquipmentStatus;
+  installed_on: string | null;
+  last_serviced_at: string | null;
+  anomaly_score: number | null;
+  latest_temperature: number | null;
+  latest_reading_at: string | null;
+};
+
+export type EquipmentDetail = Equipment & {
+  latest_reading: EquipmentReading | null;
+  open_maintenance: MaintenanceLog | null;
+};
+
+export const EQUIPMENT_KIND_LABELS: Record<EquipmentKind, string> = {
+  VENTILATOR: "Ventilator",
+  MONITOR: "Patient monitor",
+  INFUSION_PUMP: "Infusion pump",
+};
+
+export const EQUIPMENT_STATUS_LABELS: Record<EquipmentStatus, string> = {
+  OK: "OK",
+  WARNING: "Warning",
+  FAULT: "Fault",
+  MAINTENANCE: "In maintenance",
+};
+
+export type HospitalSummary = {
+  hospital_time: string;
+  units: { code: string; name: string; unit_type: string; capacity: number; occupied: number; cleaning: number }[];
+  beds: { total: number; occupied: number; cleaning: number; free: number; closed: number };
+  icu: { occupied: number; capacity: number; percent: number };
+  emergency: { waiting: number; by_triage: Record<string, number> };
+  alerts: {
+    open: number;
+    acknowledged: number;
+    by_severity: Partial<Record<AlertSeverity, number>>;
+    by_kind: Record<string, number>;
+  };
+  equipment: { total: number; by_status: Partial<Record<EquipmentStatus, number>> };
+  today: { admissions: number; discharges: number };
+};
+
 export type HospitalClock = {
   hospital_time: string;
   running: boolean;

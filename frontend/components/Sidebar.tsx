@@ -22,11 +22,11 @@ const NAV: { section: string; items: NavItem[] }[] = [
     section: "Hospital",
     items: [
       { label: "Hospital map", href: "/", roles: ALL, ready: true },
-      { label: "Dashboard", href: "/dashboard", roles: ALL, ready: false, day: 21 },
+      { label: "Dashboard", href: "/dashboard", roles: ALL, ready: true },
       { label: "Patients", href: "/patients", roles: ALL, ready: true },
       { label: "Emergency", href: "/emergency", roles: ALL, ready: true },
       { label: "Alerts", href: "/alerts", roles: ALL, ready: true },
-      { label: "Equipment", href: "/equipment", roles: ALL, ready: false, day: 21 },
+      { label: "Equipment", href: "/equipment", roles: ALL, ready: true },
     ],
   },
   {
