@@ -1,3 +1,7 @@
+from pathlib import Path
+import tempfile
+import gzip
+import csv
 from django.core.management import CommandError, call_command
 from django.test import TestCase
 from dataclasses import replace
@@ -247,3 +251,20 @@ class OccupancyTests(TestCase):
         #          0h   1h    2h     3h     4h     5h      6h      7h      8h   9h
         self.assertEqual(where, ["-", "ED", "ICU", "ICU", "ICU", "WARD", "WARD", "WARD", "-", "-"])
         self.assertEqual(sum(row["icu_admissions"] for row in rows), 1)
+
+
+class TelemetryExportTests(TestCase):
+    def test_exports_readings_and_faults(self):
+        call_command("seed_hospital", stdout=StringIO())
+        now = timezone.now()
+        simulator = Simulator(config=replace(SimulationConfig(), faults_per_device_per_day=0, telemetry_interval_minutes=60), seed=1)
+        simulator.devices.start_fault(Equipment.objects.get(code="VENT-01"), now)
+        simulator.devices.step(now)
+        with tempfile.TemporaryDirectory() as folder:
+            call_command("export_telemetry", "--out-dir", folder, stdout=StringIO())
+            with gzip.open(Path(folder) / "telemetry.csv.gz", "rt") as file:
+                readings = list(csv.DictReader(file))
+            with (Path(folder) / "faults.csv").open() as file:
+                faults = list(csv.DictReader(file))
+        self.assertEqual(len(readings), Equipment.objects.count())  # one reading per device
+        self.assertEqual([fault["code"] for fault in faults], ["VENT-01"])

@@ -1,0 +1,3 @@
+method,faults,caught before failure %,median hours of warning,median hours from fault start to alarm,false alarms per device-week,reading recall %,reading precision %,AUROC (readings)
+Fixed limits,16,100.0,10.75,9.416666666666668,0.0,47.12018140589569,100.0,0.9432818497679204
+Isolation Forest,16,100.0,16.416666666666668,4.0,0.45888888888888885,77.23356009070295,85.53490708186841,0.9613677591579355
