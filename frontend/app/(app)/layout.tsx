@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { AlertBell, SoundToggle } from "@/components/AlertBell";
+import { AlertToasts } from "@/components/AlertToasts";
 import { ConnectionBanner, LiveIndicator } from "@/components/LiveStatus";
 import { Sidebar } from "@/components/Sidebar";
 import { Loading } from "@/components/States";
@@ -38,6 +40,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <header className="flex items-center gap-4 border-b border-slate-200 bg-white px-6 py-3">
             <LiveIndicator />
             <span className="flex-1" />
+            <SoundToggle />
+            <AlertBell />
             <Link href="/profile" className="text-right hover:opacity-80">
               <p className="text-sm font-medium text-slate-800">{name}</p>
               <p className="text-xs text-slate-500">{ROLE_LABELS[user.role]}</p>
@@ -51,6 +55,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </header>
           <ConnectionBanner />
           <main className="flex-1 p-6">{children}</main>
+          <AlertToasts />
         </div>
       </div>
     </LiveProvider>

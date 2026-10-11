@@ -107,6 +107,62 @@ export const OUTCOME_LABELS: Record<Admission["outcome"], string> = {
   DECEASED: "Deceased",
 };
 
+export type EmergencyArrival = {
+  id: number;
+  patient: number;
+  patient_name: string;
+  arrived_at: string;
+  triage_level: 1 | 2 | 3 | 4 | 5;
+  complaint: string;
+  status: "WAITING" | "ADMITTED" | "DISCHARGED";
+  admission: number | null;
+  waiting_minutes: number | null;
+};
+
+export const TRIAGE_LABELS: Record<number, string> = {
+  1: "Resuscitation",
+  2: "Emergent",
+  3: "Urgent",
+  4: "Less urgent",
+  5: "Non-urgent",
+};
+
+export type AlertSeverity = "INFO" | "WARNING" | "CRITICAL";
+export type AlertStatus = "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
+
+export type Alert = {
+  id: number;
+  kind: string;
+  severity: AlertSeverity;
+  status: AlertStatus;
+  message: string;
+  value: number | null;
+  admission: number | null;
+  patient_id: number | null;
+  bed: string | null;
+  equipment: number | null;
+  equipment_code: string | null;
+  unit: number | null;
+  unit_code: string | null;
+  created_at: string;
+  last_seen_at: string;
+  acknowledged_at: string | null;
+  acknowledged_by: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
+};
+
+export const ALERT_KIND_LABELS: Record<string, string> = {
+  LOW_SPO2: "Low oxygen",
+  HIGH_HEART_RATE: "High heart rate",
+  LOW_BLOOD_PRESSURE: "Low blood pressure",
+  HIGH_RESPIRATORY_RATE: "High breathing rate",
+  FEVER: "Fever",
+  HIGH_OCCUPANCY: "High occupancy",
+  EQUIPMENT_OVERHEATING: "Equipment overheating",
+  EQUIPMENT_FAILURE: "Equipment failure",
+};
+
 export type HospitalClock = {
   hospital_time: string;
   running: boolean;
