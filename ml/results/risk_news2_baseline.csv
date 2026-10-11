@@ -1,0 +1,4 @@
+test set,hours,warning hours %,AUROC,AUPRC,NEWS2≥5: catches,NEWS2≥5: alarms that are right,NEWS2≥7: catches,NEWS2≥7: alarms that are right
+Hospital A,158049,1.4,0.627,0.021,47%,2.2%,18%,2.6%
+Hospital B,151738,0.81,0.687,0.018,43%,1.9%,18%,2.6%
+Both,309787,1.11,0.663,0.019,46%,2.1%,18%,2.6%
