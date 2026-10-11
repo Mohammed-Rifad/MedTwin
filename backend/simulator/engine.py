@@ -35,6 +35,7 @@ class Simulator:
         """Advance the hospital by `hours` of hospital time, ending at `now`."""
         self.create_ed_arrivals(now, hours)
         self.create_elective_admissions(now, hours)
+        self.leave_without_being_seen(now)
         self.move_ed_queue_into_bays(now)
         self.process_due_admissions(now)
         self.clean_beds(now)
@@ -84,6 +85,17 @@ class Simulator:
                 admitted_at=now,
                 expected_discharge_at=now + self.stay(self.config.ward_stay),
             )
+
+    def leave_without_being_seen(self, now):
+        """Minor cases who have waited too long give up and leave, as happens in real emergency departments."""
+        cutoff = now - timedelta(hours=self.config.leave_unseen_after_hours)
+        gave_up = EmergencyArrival.objects.filter(
+            status=EmergencyArrival.Status.WAITING,
+            triage_level__in=self.config.leave_unseen_triage_levels,
+            arrived_at__lte=cutoff,
+        )
+        for arrival in gave_up:
+            services.discharge_from_emergency(arrival=arrival)
 
     def move_ed_queue_into_bays(self, now):
         waiting = EmergencyArrival.objects.filter(status=EmergencyArrival.Status.WAITING).select_related("patient")

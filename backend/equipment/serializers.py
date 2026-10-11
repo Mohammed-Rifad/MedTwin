@@ -21,14 +21,23 @@ class MaintenanceLogSerializer(serializers.ModelSerializer):
 class EquipmentSerializer(serializers.ModelSerializer):
     unit_code = serializers.CharField(source="unit.code", read_only=True, default=None)
     bed_code = serializers.CharField(source="bed.code", read_only=True, default=None)
+    latest_temperature = serializers.SerializerMethodField()
+    latest_reading_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipment
         fields = (
             "id", "code", "kind", "model_name", "unit", "unit_code", "bed", "bed_code",
             "status", "installed_on", "last_serviced_at", "anomaly_score",
+            "latest_temperature", "latest_reading_at",
         )
         read_only_fields = ("status", "last_serviced_at", "anomaly_score")
+
+    def get_latest_temperature(self, obj):
+        return getattr(obj, "_latest_temperature", None)
+
+    def get_latest_reading_at(self, obj):
+        return getattr(obj, "_latest_reading_at", None)
 
     def validate(self, attrs):
         unit = attrs.get("unit", getattr(self.instance, "unit", None))

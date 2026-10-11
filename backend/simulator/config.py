@@ -33,6 +33,9 @@ class SimulationConfig:
 
     # Lengths of stay: (median hours, spread) of a lognormal distribution
     ed_stay: tuple = (3.0, 0.5)
+    # Minor cases (triage 4-5) leave without being seen after waiting this long, as in real EDs.
+    leave_unseen_triage_levels: tuple = (4, 5)
+    leave_unseen_after_hours: float = 4
     # Source for the next four values: eICU-CRD Demo v2.0.1 (2,520 ICU stays),
     # notebook ml/notebooks/01_simulator_calibration.ipynb
     icu_stay: tuple = (35.1, 1.05)
@@ -48,6 +51,7 @@ class SimulationConfig:
     deterioration_probability: float = 0.10
     deterioration_onset_hours: tuple = (6, 48)
     deterioration_hours_to_peak: float = 12
+    treat_in_place_after_hours: float = 6  # no ICU bed this long after the peak: treated on the ward instead
     recovery_hours: float = 24
     reading_interval_minutes: dict = field(default_factory=lambda: {"ED": 30, "ICU": 15, "WARD": 60})
     temperature_interval_hours: float = 4

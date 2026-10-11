@@ -24,4 +24,5 @@ urlpatterns = [
     path("api/equipment/", include("equipment.urls")),
     path("api/simulator/", include("simulator.urls")),
     path("api/alerts/", include("alerts.urls")),
+    path("api/twin/", include("twin.urls")),
 ]

@@ -126,6 +126,32 @@ class SimulatedDataTests(TestCase):
             admitted_at=self.now, expected_discharge_at=self.now + timedelta(days=10),
         )
 
+    def test_deteriorating_patient_is_treated_on_the_ward_when_the_icu_is_full(self):
+        simulator = self.simulator(deterioration_probability=1.0, deterioration_onset_hours=(0, 0.01))
+        for _ in range(Bed.objects.filter(unit__code="ICU").count()):
+            self.admit(simulator, "ICU")  # fill every ICU bed
+        admission = self.admit(simulator, "WA")
+        for hour in range(0, 22, 2):  # peak at 12 h, then 6 h waiting for an ICU bed, then treated on the ward
+            simulator.vitals.step(self.now + timedelta(hours=hour))
+        admission.refresh_from_db()
+        self.assertEqual(admission.bed.unit.code, "WA")  # never moved: no ICU bed
+        self.assertIsNotNone(admission.physiology.escalated_at)  # but treatment (recovery) has started
+
+    def test_minor_cases_leave_without_being_seen_after_a_long_wait(self):
+        simulator = self.simulator()
+        five_hours_ago = self.now - timedelta(hours=5)
+        minor = EmergencyArrival.objects.create(
+            patient=simulator.new_patient(self.now), triage_level=5, complaint="Rash", arrived_at=five_hours_ago
+        )
+        serious = EmergencyArrival.objects.create(
+            patient=simulator.new_patient(self.now), triage_level=2, complaint="Chest pain", arrived_at=five_hours_ago
+        )
+        simulator.leave_without_being_seen(self.now)
+        minor.refresh_from_db()
+        serious.refresh_from_db()
+        self.assertEqual(minor.status, EmergencyArrival.Status.DISCHARGED)
+        self.assertEqual(serious.status, EmergencyArrival.Status.WAITING)  # urgent patients never give up
+
     def test_icu_patient_gets_vitals_every_15_minutes(self):
         simulator = self.simulator(deterioration_probability=0)
         admission = self.admit(simulator, "ICU")

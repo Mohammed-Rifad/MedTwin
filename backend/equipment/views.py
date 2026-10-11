@@ -1,3 +1,4 @@
+from django.db.models import OuterRef, Subquery
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -5,10 +6,9 @@ from twin import events
 from accounts.audit import log_action
 from accounts.models import AuditLog
 from accounts.permissions import IsAdminOrReadOnly
-from contextlib import contextmanager
 
 from . import services
-from .models import Equipment
+from .models import Equipment, EquipmentReading
 from .serializers import (
     EquipmentDetailSerializer,
     EquipmentReadingSerializer,
@@ -25,6 +25,14 @@ class EquipmentViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "patch", "head", "options"]
     filterset_fields = ["kind", "status", "unit"]
     search_fields = ["code", "model_name"]
+
+    def get_queryset(self):
+        # Each device's latest reading, worked out by the database in the same query (no N+1).
+        latest = EquipmentReading.objects.filter(equipment=OuterRef("pk")).order_by("-recorded_at")
+        return Equipment.objects.select_related("unit", "bed").annotate(
+            _latest_temperature=Subquery(latest.values("temperature")[:1]),
+            _latest_reading_at=Subquery(latest.values("recorded_at")[:1]),
+        )
 
     def get_serializer_class(self):
         return EquipmentDetailSerializer if self.action == "retrieve" else EquipmentSerializer

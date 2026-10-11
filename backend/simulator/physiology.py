@@ -104,12 +104,17 @@ class VitalsSimulator:
         if admission.bed.unit.unit_type != Unit.UnitType.ICU:
             bed = self.sim.free_bed(Unit.UnitType.ICU)
             if bed is None:
-                return  # no ICU bed: the patient stays critically ill where they are
-            services.transfer_patient(
-                admission=admission, to_bed=bed, transferred_at=now,
-                expected_discharge_at=now + self.sim.stay(self.config.icu_stay),
-            )
-        physiology.escalated_at = now
+                # No ICU bed. Wait a few hours for one; after that, the patient is treated where they are,
+                # so a full ICU can't leave them critically ill (and their bed blocked) forever.
+                peak = physiology.deterioration_onset_at + timedelta(hours=self.config.deterioration_hours_to_peak)
+                if now - peak < timedelta(hours=self.config.treat_in_place_after_hours):
+                    return
+            else:
+                services.transfer_patient(
+                    admission=admission, to_bed=bed, transferred_at=now,
+                    expected_discharge_at=now + self.sim.stay(self.config.icu_stay),
+                )
+        physiology.escalated_at = now  # treatment starts: recovery from here
         physiology.save(update_fields=["escalated_at"])
 
     def record_due_readings(self, admission, physiology, now):
