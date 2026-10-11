@@ -128,3 +128,11 @@ class HospitalApiTests(APITestCase):
         self.assertEqual(self.client.post(url, payload, format="json").status_code, status.HTTP_403_FORBIDDEN)
         self.as_user(self.admin)
         self.assertEqual(self.client.post(url, payload, format="json").status_code, status.HTTP_201_CREATED)
+
+    def test_page_size_can_be_raised_for_the_floor_map(self):
+        self.as_user(self.nurse)
+        url = reverse("hospital:beds-list")
+        for number in range(3, 61):
+            Bed.objects.create(unit=self.bed1.unit, code=f"ICU-{number:02d}")
+        self.assertEqual(len(self.client.get(url).data["results"]), 50)
+        self.assertEqual(len(self.client.get(url, {"page_size": 500}).data["results"]), 60)

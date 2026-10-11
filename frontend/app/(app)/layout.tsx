@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { ConnectionBanner, LiveIndicator } from "@/components/LiveStatus";
 import { Sidebar } from "@/components/Sidebar";
 import { Loading } from "@/components/States";
 import { useAuth } from "@/lib/auth";
+import { LiveProvider } from "@/lib/live";
 import { ROLE_LABELS } from "@/lib/types";
 
 /** The shell around every logged-in screen: login check, sidebar menu and header. */
@@ -29,23 +31,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const name = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username;
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-end gap-4 border-b border-slate-200 bg-white px-6 py-3">
-          <Link href="/profile" className="text-right hover:opacity-80">
-            <p className="text-sm font-medium text-slate-800">{name}</p>
-            <p className="text-xs text-slate-500">{ROLE_LABELS[user.role]}</p>
-          </Link>
-          <button
-            onClick={logout}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
-          >
-            Log out
-          </button>
-        </header>
-        <main className="flex-1 p-6">{children}</main>
+    <LiveProvider>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="flex items-center gap-4 border-b border-slate-200 bg-white px-6 py-3">
+            <LiveIndicator />
+            <span className="flex-1" />
+            <Link href="/profile" className="text-right hover:opacity-80">
+              <p className="text-sm font-medium text-slate-800">{name}</p>
+              <p className="text-xs text-slate-500">{ROLE_LABELS[user.role]}</p>
+            </Link>
+            <button
+              onClick={logout}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+            >
+              Log out
+            </button>
+          </header>
+          <ConnectionBanner />
+          <main className="flex-1 p-6">{children}</main>
+        </div>
       </div>
-    </div>
+    </LiveProvider>
   );
 }
