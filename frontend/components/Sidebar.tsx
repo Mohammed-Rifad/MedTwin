@@ -23,7 +23,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { label: "Hospital map", href: "/", roles: ALL, ready: true },
       { label: "Dashboard", href: "/dashboard", roles: ALL, ready: false, day: 21 },
-      { label: "Patients", href: "/patients", roles: ALL, ready: false, day: 18 },
+      { label: "Patients", href: "/patients", roles: ALL, ready: true },
       { label: "Emergency", href: "/emergency", roles: ALL, ready: false, day: 20 },
       { label: "Alerts", href: "/alerts", roles: ALL, ready: false, day: 20 },
       { label: "Equipment", href: "/equipment", roles: ALL, ready: false, day: 21 },
@@ -70,8 +70,8 @@ export function Sidebar() {
                     <Link
                       href={item.href}
                       className={`block rounded-lg px-3 py-2 text-sm ${
-                        pathname === item.href
-                          ? "bg-sky-50 font-medium text-sky-700"
+                        pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`))
+                          ?"bg-sky-50 font-medium text-sky-700"
                           : "text-slate-700 hover:bg-slate-100"
                       }`}
                     >

@@ -46,8 +46,10 @@ class BedSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Bed
-        fields = ("id", "unit", "unit_code", "code", "status", "is_active", "map_x", "map_y", "current_admission")
-        read_only_fields = ("status",)
+        fields = (
+            "id", "unit", "unit_code", "code", "status", "status_since", "is_active", "map_x", "map_y", "current_admission",
+        )
+        read_only_fields = ("status", "status_since")
 
     def get_current_admission(self, obj):
         admission = current_admission_of(obj)

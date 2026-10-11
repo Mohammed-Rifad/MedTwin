@@ -48,10 +48,63 @@ export type Bed = {
   unit_code: string;
   code: string;
   status: "FREE" | "OCCUPIED" | "CLEANING";
+  status_since: string | null;
   is_active: boolean;
   map_x: number;
   map_y: number;
   current_admission: CurrentAdmission | null;
+};
+
+export type Admission = {
+  id: number;
+  patient: number;
+  patient_name: string;
+  bed: number;
+  bed_code: string;
+  unit: string;
+  reason: string;
+  admitted_at: string;
+  expected_discharge_at: string | null;
+  discharged_at: string | null;
+  outcome: "" | "HOME" | "TRANSFERRED" | "DECEASED";
+  risk_score: number | null;
+  risk_level: RiskLevel;
+  length_of_stay_hours: number;
+};
+
+export type Patient = {
+  id: number;
+  mrn: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  sex: "M" | "F" | "O";
+  age: number;
+  current_admission: CurrentAdmission | null;
+  created_at: string;
+};
+
+export type PatientDetail = Patient & { admissions: Admission[] };
+
+export type VitalReading = {
+  id: number;
+  recorded_at: string;
+  heart_rate: number | null;
+  spo2: number | null;
+  systolic_bp: number | null;
+  diastolic_bp: number | null;
+  respiratory_rate: number | null;
+  temperature: number | null;
+  source: "MONITOR" | "MANUAL";
+};
+
+export const SEX_LABELS: Record<Patient["sex"], string> = { M: "Male", F: "Female", O: "Other" };
+
+export const OUTCOME_LABELS: Record<Admission["outcome"], string> = {
+  "": "Current stay",
+  HOME: "Discharged home",
+  TRANSFERRED: "Transferred out",
+  DECEASED: "Deceased",
 };
 
 export type HospitalClock = {
