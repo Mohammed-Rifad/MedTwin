@@ -15,6 +15,7 @@ from hospital.models import Admission, Bed, EmergencyArrival, Patient, Unit
 from .calibration import expected_census
 from .config import SimulationConfig
 from .engine import Simulator
+from .occupancy import hourly_occupancy
 from equipment.models import EquipmentReading
 from hospital.models import VitalReading
 from twin.models import HospitalClock
@@ -228,3 +229,21 @@ class HistoryTests(TestCase):
     def test_requires_reset_flag(self):
         with self.assertRaises(CommandError):
             call_command("generate_history", stdout=StringIO())
+
+
+class OccupancyTests(TestCase):
+    def test_hourly_occupancy_follows_a_patient_through_the_hospital(self):
+        call_command("seed_hospital", stdout=StringIO())
+        start = timezone.now().replace(minute=0, second=0, microsecond=0)
+        at = lambda hours: start + timedelta(hours=hours)  # noqa: E731
+        patient = Simulator(seed=1).new_patient(start)
+        admission = services.admit_patient(patient=patient, bed=Bed.objects.get(code="ED-01"), admitted_at=at(0.5))
+        services.transfer_patient(admission=admission, to_bed=Bed.objects.get(code="ICU-01"), transferred_at=at(2))
+        services.transfer_patient(admission=admission, to_bed=Bed.objects.get(code="WA-01"), transferred_at=at(5))
+        services.discharge_patient(admission=admission, outcome="HOME", discharged_at=at(8))
+
+        rows = list(hourly_occupancy(start, at(9)))
+        where = [("ED" if row["ED"] else "ICU" if row["ICU"] else "WARD" if row["WARD"] else "-") for row in rows]
+        #          0h   1h    2h     3h     4h     5h      6h      7h      8h   9h
+        self.assertEqual(where, ["-", "ED", "ICU", "ICU", "ICU", "WARD", "WARD", "WARD", "-", "-"])
+        self.assertEqual(sum(row["icu_admissions"] for row in rows), 1)
