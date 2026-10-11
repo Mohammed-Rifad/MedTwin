@@ -1,0 +1,5 @@
+model,AUROC,AUPRC,hours alarmed %,catches %,alarms that are right %,patients caught %
+NEWS2,0.663,0.019,24.145,45.878,2.106,71.902
+Logistic Regression,0.725,0.041,25.041,58.608,2.594,69.634
+Random Forest,0.798,0.062,25.568,67.9,2.943,81.326
+XGBoost,0.795,0.067,25.458,67.317,2.93,81.326
