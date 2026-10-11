@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { AdmitButton } from "@/components/PatientActions";
 import { EmptyState, ErrorMessage, Loading } from "@/components/States";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
@@ -22,6 +23,7 @@ export default function PatientsPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [result, setResult] = useState<Paginated<Patient> | null>(null);
   const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0); // bumped after admitting someone, to refresh the list
 
   useEffect(() => {
     api<Paginated<Unit>>("/api/hospital/units/?page_size=100")
@@ -54,15 +56,18 @@ export default function PatientsPage() {
     return () => {
       cancelled = true;
     };
-  }, [search, admitted, unit, page]);
+  }, [search, admitted, unit, page, reloadKey]);
 
   const pages = result ? Math.max(1, Math.ceil(result.count / PAGE_SIZE)) : 1;
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-800">Patients</h1>
-        <p className="text-slate-500">Search by name or MRN, or narrow the list by unit.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-800">Patients</h1>
+          <p className="text-slate-500">Search by name or MRN, or narrow the list by unit.</p>
+        </div>
+        <AdmitButton onDone={() => setReloadKey((key) => key + 1)} />
       </div>
 
       <div className="flex flex-wrap gap-3">

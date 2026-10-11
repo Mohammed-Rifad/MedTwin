@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { AdmissionActions, AdmitButton } from "@/components/PatientActions";
 import { ErrorMessage, Loading } from "@/components/States";
 import { VitalsChart } from "@/components/VitalsChart";
 import { api, ApiError } from "@/lib/api";
@@ -17,6 +18,8 @@ export default function PatientPage() {
   const [patient, setPatient] = useState<PatientDetail | null>(null);
   const [mapBedId, setMapBedId] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0); // bumped after an action (admit, transfer, discharge…)
+  const reload = () => setReloadKey((key) => key + 1);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +32,7 @@ export default function PatientPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   const current = patient?.admissions.find((admission) => admission.discharged_at === null) ?? null;
   const { readings, error: vitalsError } = useVitals(current?.id ?? null);
@@ -89,9 +92,24 @@ export default function PatientPage() {
                   {current.risk_level ? current.risk_level.toLowerCase() : "not scored yet (arrives on Day 30)"}
                 </dd>
               </dl>
+              <div className="mt-4">
+                <AdmissionActions
+                  admissionId={current.id}
+                  bedCode={current.bed_code}
+                  patientName={`${patient.first_name} ${patient.last_name}`}
+                  onChanged={reload}
+                />
+              </div>
             </>
           ) : (
-            <p className="text-sm text-slate-500">Not currently admitted.</p>
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-slate-500">Not currently admitted.</p>
+              <AdmitButton
+                patient={{ id: patient.id, name: `${patient.first_name} ${patient.last_name}` }}
+                label="Admit"
+                onDone={reload}
+              />
+            </div>
           )}
         </section>
 

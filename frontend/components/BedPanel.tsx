@@ -7,6 +7,7 @@ import type { Bed } from "@/lib/types";
 import { useVitals } from "@/lib/useVitals";
 
 import { bedLook } from "./FloorMap";
+import { AdmissionActions, EmptyBedActions } from "./PatientActions";
 import { ErrorMessage, Loading } from "./States";
 import { VitalsChart } from "./VitalsChart";
 
@@ -47,6 +48,7 @@ export function BedPanel({ bed, onClose }: { bed: Bed; onClose: () => void }) {
               Risk: {admission.risk_level ? admission.risk_level.toLowerCase() : "not scored yet (arrives on Day 30)"}
             </p>
           </div>
+          <AdmissionActions admissionId={admission.id} bedCode={bed.code} patientName={admission.patient_name} />
           <div>
             <h3 className="mb-2 text-sm font-semibold text-slate-700">Vital signs</h3>
             {error && <ErrorMessage message={error} />}
@@ -55,9 +57,12 @@ export function BedPanel({ bed, onClose }: { bed: Bed; onClose: () => void }) {
           </div>
         </>
       ) : (
-        <p className="text-sm text-slate-500">
-          {bed.is_active ? "No patient in this bed." : "This bed is closed."}
-        </p>
+        <>
+          <p className="text-sm text-slate-500">
+            {bed.is_active ? "No patient in this bed." : "This bed is closed."}
+          </p>
+          <EmptyBedActions bed={bed} />
+        </>
       )}
     </aside>
   );
